@@ -5,9 +5,9 @@ from fastapi.responses import FileResponse
 import os
 from database.builddb import create_tables
 import sqlite3
-from typing import List, Optional
+from typing import List
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import datetime
 from llm import enviarMensagemLLM
 
 @asynccontextmanager
