@@ -36,7 +36,7 @@ ChatbotIA/
 ## Pré-Requisitos
 
 - Python 3.11+ (o projeto usa `venv`, disponível na pasta `venv/`).
-- Pip para instalar dependências (`fastapi`, `uvicorn`, `python-dotenv`, `openai`, etc.).
+- Pip para instalar dependências (`fastapi`, `openai`, etc.).
 - LM Studio (opcional) com endpoint HTTP exposto, caso deseje rodar a LLM localmente.
 
 ## Configuração e Execução
