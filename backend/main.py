@@ -35,6 +35,9 @@ def get_db_connection():
 async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+@app.get("/chat")
+def rootChat():
+    return FileResponse(os.path.join(STATIC_DIR, "chat.html"))
 
 
 # ========================== Modelos pydantic =============================
@@ -122,6 +125,7 @@ def listarMensagens(conversa_id: int):
 
     try:
         conn = sqlite3.connect("backend/database/chatbot.db")
+        conn.execute("PRAGMA foreign_keys = ON;")
         cursor = conn.cursor()
         cursor.execute("SELECT mensagem_id, remetente, conteudo, timestamp FROM mensagens WHERE conversa_id = ? ORDER BY timestamp ASC", (conversa_id,))
         rows = cursor.fetchall()
@@ -151,6 +155,7 @@ def enviarMensagem(conversa_id: int, mensagem: MensagemCreate):
     conn = None
     try:
         conn = sqlite3.connect("backend/database/chatbot.db")
+        conn.execute("PRAGMA foreign_keys = ON;")
         cursor = conn.cursor()
 
         # GRAVANDO NO BANCO DE DADOS
@@ -210,11 +215,31 @@ def enviarMensagem(conversa_id: int, mensagem: MensagemCreate):
             conn.close()
 
 
+@app.delete("/conversas/{conversa_id}")
+def excluirConversas(conversa_id: int):
+    try:
+        conn = sqlite3.connect("backend/database/chatbot.db")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        cursor = conn.cursor()
 
+        cursor.execute("DELETE FROM conversas WHERE conversa_id = ?", (conversa_id,))
+        conn.commit()
+
+        return {"Sucesso" : "Conversa excluida"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="${e}")
+    finally:
+        if conn:
+            conn.close()
 
         
-
-
+@app.delete("/api/db")
+def clearDB():
+    caminhoDB = "backend/database/chatbot.db"
+    if os.path.exists(caminhoDB):
+        os.remove(caminhoDB)
+    create_tables()
+    return { "Sucesso": "Banco de dados resetado!"}
 
 
 

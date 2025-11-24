@@ -8,7 +8,7 @@ def enviarMensagemLLM(mensagens_historico):
 
     if usar_llm_local:
         client = OpenAI(
-            base_url="http://localhost:1234/v1",
+            base_url="https://05c652577638.ngrok-free.app/v1",
             api_key="lm-studio"
         )
         modelo = "openai/gpt-oss-20b"
@@ -28,3 +28,4 @@ def enviarMensagemLLM(mensagens_historico):
         return response.choices[0].message.content
     except Exception as e:
         return f"Erro no envio da LLM: {str(e)}"
+    

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatbotAI</title>
+    <link rel="stylesheet" href="/static/chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+    <body>
+        <div class="history">
+            
+        </div>
+        
+        <div class="card">
+            <div class="header">
+                <button class="addchat" onclick="criarNovaConversa()">Nova conversa</button>
+                <p class="title">Chatbot</p>
+                <button class="removechat" onclick="excluirConversa()">Excluir Conversa</button>
+            </div>
+            <div class="border"></div>
+            <div class="chat">
+            </div>
+            <div class="footer">
+                <input class="msginput" placeholder="Insira sua mensagem aqui" onkeydown="verificarEnter(event)">
+            </div>
+            
+        </div>
+        <div class="dev">
+            <button class="clearDB" onclick="clearDB()">Limpar Banco de Dados</button>
+        </div>
+
+    </body>
+    <script src="/static/chat.js"></script>
+</html>
