@@ -27,5 +27,5 @@ def enviarMensagemLLM(mensagens_historico):
             
         return response.choices[0].message.content
     except Exception as e:
-        return f"Erro no envio da LLM: AAA {str(e)}"
+        return f"Erro no envio da LLM: {str(e)}"
     
