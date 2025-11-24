@@ -60,7 +60,7 @@ ChatbotIA/
 
 4. **Subir o backend**
    ```bash
-   uvicorn backend.main:app --reload
+   fastapi dev backend/main.py
    ```
    O FastAPI faz:
    - Montagem automática de `/static` → arquivos web.
