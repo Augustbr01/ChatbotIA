@@ -45,28 +45,24 @@ ChatbotIA/
    ```bash
    python -m venv venv
    venv\Scripts\activate            # Windows
-   pip install fastapi uvicorn python-dotenv openai sqlite-utils
+   pip install fastapi[standart] openai sqlite-utils
    ```
    (Se já estiver usando o `venv/` existente, apenas ative-o.)
 
-2. **Variáveis de ambiente**
-   - Crie um `.env` na raiz ou exporte variáveis antes de subir o servidor se precisar de chaves.
-   - O projeto chama `load_dotenv()`, portanto qualquer variável disponível será lida (ex.: `OPENAI_API_KEY`).
-
-3. **Configurar a LLM (`backend/llm.py`)**
+2. **Configurar a LLM (`backend/llm.py`)**
    - `usar_llm_local = True`: usa LM Studio via `base_url` + API key `"lm-studio"`.
    - `usar_llm_local = False`: habilita o cliente oficial OpenAI (preencha `api_key`).
    - Ajuste `modelo` conforme o endpoint escolhido (`openai/gpt-oss-20b`, `gpt-4o`, etc.).
 
-4. **Subir o backend**
+3. **Subir o backend**
    ```bash
-   uvicorn backend.main:app --reload
+   fastapi dev backend/main.py
    ```
    O FastAPI faz:
    - Montagem automática de `/static` → arquivos web.
    - Criação do banco (`create_tables()`) antes de aceitar requisições.
 
-5. **Acessar**
+4. **Acessar**
    - `http://localhost:8000/` mostra a landing page.
    - `http://localhost:8000/chat` abre o chat principal.
 
