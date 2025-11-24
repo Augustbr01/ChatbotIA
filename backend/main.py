@@ -25,11 +25,6 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # =========================================================================
 
-def get_db_connection():
-    conn = sqlite3.connect("backend/database/chatbot.db")
-    cursor = conn.cursor()
-    return cursor
-
 @app.get("/")
 async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
