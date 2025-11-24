@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles 
 from fastapi.responses import FileResponse
-from dotenv import load_dotenv
 import os
 from database.builddb import create_tables
 import sqlite3
