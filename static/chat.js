@@ -1,5 +1,24 @@
 
 conversaAtualId = null;
+tituloatual = null;
+
+const buttonAdd = document.getElementById("add");
+const buttonRemove = document.getElementById("remove")
+
+buttonAdd.className = "hidden";
+buttonRemove.className = "hidden";
+
+
+function bemvindo() {
+    const chatdiv = document.querySelector(".chat")
+    const bemvindo = document.createElement("h1")
+    bemvindo.id = "welcome"
+    bemvindo.className = ""
+    bemvindo.innerHTML = "Seja Livre... Pergunte algo ao chat"
+    chatdiv.appendChild(bemvindo)
+}
+
+bemvindo();
 
 window.onload = async function() {
     await carregarListaConversas();
@@ -38,9 +57,10 @@ async function carregarListaConversas() {
     conversas.forEach(conversa => {
         const buttonHTML = document.createElement('button');
         buttonHTML.className = 'item-conversa';
+        buttonHTML.id = `${conversa.conversa_id}`
         if (conversa.conversa_id === conversaAtualId) buttonHTML.classList.add('active')
 
-        buttonHTML.innerHTML = `💬 ${conversa.titulo}`
+        buttonHTML.innerHTML = `${conversa.titulo}`
 
         buttonHTML.onclick = () => carregarConversa(conversa.conversa_id);
 
@@ -65,19 +85,29 @@ async function criarNovaConversa() {
 
         await carregarListaConversas();
         carregarConversa(novaConversa.conversa_id);
+        tituloatual = titulo;
+
     } catch (error) {
         alert("Erro ao criar conversa");
         console.error(error);
     }
 }
 
-async function criarNovaConversaAuto(titulo = "Nova Conversa") {
+async function criarNovaConversaAuto(titulo = "💬 Nova Conversa") {
     const response = await fetch('/conversas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titulo })
     });
     window.history.replaceState({}, document.title, window.location.pathname);
+    tituloatual = titulo;
+
+    const buttonAdd = document.getElementById("add");
+    const buttonRemove = document.getElementById("remove")
+
+    buttonAdd.className = "";
+    buttonRemove.className = "";
+
     return await response.json();
 }
 
@@ -85,6 +115,7 @@ async function criarNovaConversaAuto(titulo = "Nova Conversa") {
 
 async function carregarConversa(id) {
     conversaAtualId = id;
+    
 
     carregarListaConversas();
 
@@ -99,6 +130,11 @@ async function carregarConversa(id) {
             renderizarMensagem(msg.remetente.toLowerCase(), msg.conteudo);
         });
 
+        const buttonAdd = document.getElementById("add");
+        const buttonRemove = document.getElementById("remove")
+        bemvindo.className = "hidden"
+        buttonAdd.className = "";
+        buttonRemove.className = "";
         rolarParaBaixo();
     } catch (error) {
         console.error("Erro ao carregar historico: ", error);
@@ -108,14 +144,21 @@ async function carregarConversa(id) {
 // ===================== API: ENVIAR MSG =========================
 
 async function enviarMensagem() {
+    let primeiramsg = "true";
     if (!conversaAtualId) {
         const novaconversa = await criarNovaConversaAuto();
         conversaAtualId = novaconversa.conversa_id;
+        primeiramsg = "true";
 
         await carregarListaConversas();
         await carregarConversa(conversaAtualId);
 
     }
+
+    if (tituloatual != "💬 Nova Conversa") {
+        primeiramsg = "false";
+    }
+    
     const input = document.querySelector(".msginput");
     const texto = input.value.trim();
 
@@ -129,12 +172,15 @@ async function enviarMensagem() {
         const response = await fetch(`/conversas/${conversaAtualId}/mensagens`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ conteudo: texto})
+            body: JSON.stringify({ "conteudo": texto, "primeiramsg": primeiramsg})
         });
 
         if (!response.ok) throw new Error("Erro na API");
 
         const respostaIA = await response.json();
+        if (primeiramsg == "true") {
+            definirTitulo(conversaAtualId, respostaIA.titulo)
+        }
 
         renderizarMensagem('ia', respostaIA.conteudo);
         rolarParaBaixo();
@@ -143,6 +189,14 @@ async function enviarMensagem() {
         console.error(error);
     }
 }
+
+function definirTitulo(id, titulo) {
+    const buttonconversa = document.getElementById(id);
+
+    buttonconversa.innerHTML = `💬` + `${titulo}`;
+    tituloatual = titulo;
+}
+
 
 // =========== API: EXCLUIR CONVERSAS ================
 
@@ -158,7 +212,13 @@ async function excluirConversa() {
         carregarListaConversas();
         const chatDiv = document.querySelector(".chat");
         chatDiv.innerHTML = '';
-        
+        conversaAtualId = null;
+        tituloatual = null;
+        const buttonAdd = document.getElementById("add");
+        const buttonRemove = document.getElementById("remove")
+        buttonAdd.className = "hidden";
+        buttonRemove.className = "hidden";
+        bemvindo();
     } catch (error) {
         console.error(error);
     }
@@ -192,6 +252,12 @@ function rolarParaBaixo() {
 function limparChat() {
     const chatdiv = document.querySelector(".chat");
     chatdiv.innerHTML = "";
+    const buttonAdd = document.getElementById("add");
+    const buttonRemove = document.getElementById("remove")
+
+    buttonAdd.className = "hidden";
+    buttonRemove.className = "hidden";
+    bemvindo();
 }
 
 // ========== Funções para ambiente de desenvolvimento ========

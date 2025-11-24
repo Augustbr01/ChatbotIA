@@ -46,9 +46,11 @@ class ConversaResponse(BaseModel):
 
 class MensagemCreate(BaseModel):
     conteudo: str
+    primeiramsg: str
 
 class MensagemResponse(BaseModel):
     mensagem_id: int
+    titulo: str | None = None
     remetente: str
     conteudo: str
     timestamp: str
@@ -147,10 +149,27 @@ def listarMensagens(conversa_id: int):
 def enviarMensagem(conversa_id: int, mensagem: MensagemCreate):
     data_atual = datetime.now().isoformat()
     conn = None
+    
+    conn = sqlite3.connect("backend/database/chatbot.db")
+    conn.execute("PRAGMA foreign_keys = ON;")
+    cursor = conn.cursor()
+
+    if mensagem.primeiramsg == "true":
+        promptSistema = {
+            "role": "system",
+            "content": "Você é gerador de titulo, onde recebe uma mensagem e voce deve gerar um titulo de um conversa de 1 linha baseado nessa mensagem. Só deve responder o titulo e nada mais."
+        }
+        titulorecebido = []
+        titulorecebido.append({"role": "user", "content": mensagem.conteudo})
+        mensagemfinal = [promptSistema] + titulorecebido
+        respostatitulo = enviarMensagemLLM(mensagemfinal)
+
+        cursor.execute("UPDATE conversas SET titulo = ? WHERE conversa_id = ?", (respostatitulo, conversa_id))
+        conn.commit()
+        
+
     try:
-        conn = sqlite3.connect("backend/database/chatbot.db")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        cursor = conn.cursor()
+        
 
         # GRAVANDO NO BANCO DE DADOS
         cursor.execute("INSERT INTO mensagens (conversa_id, remetente, conteudo, timestamp) VALUES (?, ?, ?, ?)", (conversa_id, "Usuario", mensagem.conteudo, data_atual))
@@ -196,6 +215,7 @@ def enviarMensagem(conversa_id: int, mensagem: MensagemCreate):
 
         return {
             "mensagem_id": ia_message_id,
+            "titulo": respostatitulo if mensagem.primeiramsg == "true" else None,
             "remetente": "IA",
             "conteudo": resposta_ia_texto,
             "timestamp": data_atual_resposta
@@ -234,14 +254,4 @@ def clearDB():
         os.remove(caminhoDB)
     create_tables()
     return { "Sucesso": "Banco de dados resetado!"}
-
-
-
-
-
-
-
-        
-    
-
 

@@ -138,7 +138,7 @@ textarea {
 
 .history button {
     border-radius: 100px;
-    width: 150px;
+    width: 250px;
     height: 50px;
     border:none;
     padding-right: 12px;
@@ -147,12 +147,27 @@ textarea {
 
 .history button:hover {
     border-radius: 100px;
-    width: 150px;
+    width: 250px;
     background-color: #29292a;
     color: white;
     height: 50px;
     transition: all 0.2s ease;
     cursor: pointer;
+}
+
+.hidden {
+    visibility: hidden;
+}
+
+#welcome {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    color: rgba(255, 255, 255, 0.322);
+    font-size: 25px;
+    text-align: center;
 }
 
 .card {
@@ -176,7 +191,9 @@ textarea {
     width: 100%;
     overflow: auto;
     margin-bottom: 10px;
-    overflow-x: hidden
+    overflow-x: hidden;
+    width: 100%;
+
 }
 
 .box-message-user {
