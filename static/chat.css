@@ -90,9 +90,13 @@ textarea {
     width: 100px;
     height: 30px;
     justify-items: center;
-    font-size: 10px;
-    
+    font-size: 10px;  
 }
+
+.hidden {
+    visibility: hidden;
+}
+
 
 .header button:hover {
     text-align: center;
@@ -148,15 +152,15 @@ textarea {
 .history button:hover {
     border-radius: 100px;
     width: 250px;
-    background-color: #29292a;
-    color: white;
+    background-color: #ffe54f;
+    color: black;
     height: 50px;
     transition: all 0.2s ease;
     cursor: pointer;
 }
 
-.hidden {
-    visibility: hidden;
+.active {
+    background-color: #ffe54f;
 }
 
 #welcome {
