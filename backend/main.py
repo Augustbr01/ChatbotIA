@@ -1,19 +1,27 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles 
 from fastapi.responses import FileResponse
 import os
-from database.builddb import create_tables
-import sqlite3
+from database.builddb import initialize_db
+import aiosqlite
 from typing import List
 from contextlib import asynccontextmanager
 from datetime import datetime
 from llm import enviarMensagemLLM
+from database.database import get_db
+from service import (
+    get_conversas_db,
+    create_conversa_db,
+    get_mensagens_db,
+    send_message_service,
+    delete_conversa_db
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("INFO:    🚀 Inicializando servidor...")
-    create_tables()  # executa na inicialização, criando o banco de dados caso nao tenha
+    await initialize_db()  # executa na inicialização, criando o banco de dados caso nao tenha
     yield # ISSO DIFERENCIA A INICIALIZAÇÃO DO ENCERRAMENTO DO FASTAPI
     print("INFO:    🛑 Encerrando servidor...")
 
@@ -46,7 +54,6 @@ class ConversaResponse(BaseModel):
 
 class MensagemCreate(BaseModel):
     conteudo: str
-    primeiramsg: str
 
 class MensagemResponse(BaseModel):
     mensagem_id: int
@@ -63,195 +70,53 @@ class ListarConversa(BaseModel):
 # Rotas de Gerenciamento de Conversa
 
 @app.get("/conversas", response_model=List[ConversaResponse])
-def get_conversas():
+async def get_conversas(conn: aiosqlite.Connection = Depends(get_db)):
     try:
-        conn = sqlite3.connect("backend/database/chatbot.db")
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT conversa_id, titulo, data_criacao FROM conversas ORDER BY conversa_id DESC")
-        rows = cursor.fetchall()
-
-        conn.close()
-
-        lista_formatada = []
-
-        for row in rows:
-            lista_formatada.append({
-                "conversa_id": row[0],
-                "titulo": row[1],
-                "data_criacao": row[2]
-            })
-
-        return lista_formatada
+        return await get_conversas_db(conn)
     except Exception as e:
         print(f"ERRO NO BANCO (GET Conversas): {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao listar conversas: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
+
 
 @app.post("/conversas", response_model=ConversaResponse)
-def criar_conversa(conversa: ConversaCreate):
-    data_atual = datetime.now().isoformat()
+async def criar_conversa(conversa: ConversaCreate, conn: aiosqlite.Connection = Depends(get_db)):
     try:
-        conn = sqlite3.connect("backend/database/chatbot.db")
-        cursor = conn.cursor()
-
-        cursor.execute("INSERT INTO conversas (titulo, data_criacao) VALUES (?, ?)", (conversa.titulo, data_atual))
-        conn.commit()
-
-        id = cursor.lastrowid
-        conn.close()
-
-        return {
-            "conversa_id": id,
-            "titulo": conversa.titulo,
-            "data_criacao": data_atual
-        }
+        return await create_conversa_db(conn, conversa.titulo)
     except Exception as e:
         print(f"ERRO NO BANCO (POST Conversas): {e}")
-        # Garante serialização para string
         raise HTTPException(status_code=500, detail=f"Erro ao criar conversa: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
 
 @app.get("/conversas/{conversa_id}/mensagens", response_model=List[MensagemResponse])
-def listarMensagens(conversa_id: int):
-
+async def listarMensagens(conversa_id: int, conn: aiosqlite.Connection = Depends(get_db)):
     try:
-        conn = sqlite3.connect("backend/database/chatbot.db")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        cursor = conn.cursor()
-        cursor.execute("SELECT mensagem_id, remetente, conteudo, timestamp FROM mensagens WHERE conversa_id = ? ORDER BY timestamp ASC", (conversa_id,))
-        rows = cursor.fetchall()
-
-        lista = []
-
-        for row in rows:
-            lista.append({
-                "mensagem_id": row[0],
-                "remetente": row[1],
-                "conteudo": row[2],
-                "timestamp": row[3]
-            })
-
-        return lista
+        return await get_mensagens_db(conn, conversa_id)
     except Exception as e:
         print(f"ERRO NO BANCO (GET Mensagens): {e}")
-        # Garante serialização para string
-        raise HTTPException(status_code=500, detail=f"Erro ao criar conversa: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
+        raise HTTPException(status_code=500, detail=f"Erro ao listar mensagens: {str(e)}")
     
 @app.post("/conversas/{conversa_id}/mensagens", response_model=MensagemResponse)
-def enviarMensagem(conversa_id: int, mensagem: MensagemCreate):
-    data_atual = datetime.now().isoformat()
-    conn = None
-    
-    conn = sqlite3.connect("backend/database/chatbot.db")
-    conn.execute("PRAGMA foreign_keys = ON;")
-    cursor = conn.cursor()
-
-    if mensagem.primeiramsg == "true":
-        promptSistema = {
-            "role": "system",
-            "content": "Você é gerador de titulo, onde recebe uma mensagem e voce deve gerar um titulo de um conversa de 1 linha baseado nessa mensagem. Só deve responder o titulo e nada mais."
-        }
-        titulorecebido = []
-        titulorecebido.append({"role": "user", "content": mensagem.conteudo})
-        mensagemfinal = [promptSistema] + titulorecebido
-        respostatitulo = enviarMensagemLLM(mensagemfinal)
-
-        cursor.execute("UPDATE conversas SET titulo = ? WHERE conversa_id = ?", (respostatitulo, conversa_id))
-        conn.commit()
-        
-
+async def enviarMensagem(conversa_id: int, mensagem: MensagemCreate, conn: aiosqlite.Connection = Depends(get_db)):
     try:
-        
-
-        # GRAVANDO NO BANCO DE DADOS
-        cursor.execute("INSERT INTO mensagens (conversa_id, remetente, conteudo, timestamp) VALUES (?, ?, ?, ?)", (conversa_id, "Usuario", mensagem.conteudo, data_atual))
-        conn.commit()
-
-        user_message_id = cursor.lastrowid
-
-        ORCAMENTO_MAXIMO_CARACTERES = 4000
-
-        # Extraindo historico da conversa do banco de dados
-        cursor.execute("SELECT remetente, conteudo FROM mensagens WHERE conversa_id = ? ORDER BY timestamp DESC LIMIT 20", (conversa_id,))
-        historico_invertido = cursor.fetchall()
-
-        mensagens_selecionadas = []
-        caracteres_acumulados = 0
-
-        promptSistema = {
-            "role": "system",
-            "content": "Você é um assistente útil. Responda de forma clara e objetiva."
-        }
-
-        for remetente, conteudo in historico_invertido:
-            tamanho_msg = len(conteudo)
-
-            if caracteres_acumulados + tamanho_msg > ORCAMENTO_MAXIMO_CARACTERES:
-                break
-
-            role = "user" if remetente == "Usuario" else "assistant"
-            mensagens_selecionadas.append({"role": role, "content": conteudo})
-            caracteres_acumulados += tamanho_msg
-
-        ## O ::-1 faz inverter a ordem da lista das mensagens selecionadas
-        mensagens_finais = [promptSistema] + mensagens_selecionadas[::-1]
-
-        resposta_ia_texto = enviarMensagemLLM(mensagens_finais)
-
-        data_atual_resposta = datetime.now().isoformat()
-
-        cursor.execute("INSERT INTO mensagens (conversa_id, remetente, conteudo, timestamp) VALUES (?, ?, ?, ?)", (conversa_id, "IA", resposta_ia_texto, data_atual_resposta))
-        conn.commit()
-
-        ia_message_id = cursor.lastrowid
-
-        return {
-            "mensagem_id": ia_message_id,
-            "titulo": respostatitulo if mensagem.primeiramsg == "true" else None,
-            "remetente": "IA",
-            "conteudo": resposta_ia_texto,
-            "timestamp": data_atual_resposta
-        }
+        return await send_message_service(conn, conversa_id, mensagem.conteudo)
     except Exception as e:
         print(f"ERRO NO BANCO (POST Mensagens): {e}")
         # Garante serialização para string
         raise HTTPException(status_code=500, detail=f"Erro ao criar conversa: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
 
 
 @app.delete("/conversas/{conversa_id}")
-def excluirConversas(conversa_id: int):
+async def excluirConversas(conversa_id: int, conn: aiosqlite.Connection = Depends(get_db)):
     try:
-        conn = sqlite3.connect("backend/database/chatbot.db")
-        conn.execute("PRAGMA foreign_keys = ON;")
-        cursor = conn.cursor()
-
-        cursor.execute("DELETE FROM conversas WHERE conversa_id = ?", (conversa_id,))
-        conn.commit()
-
-        return {"Sucesso" : "Conversa excluida"}
+        return await delete_conversa_db(conn, conversa_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="${e}")
-    finally:
-        if conn:
-            conn.close()
+        raise HTTPException(status_code=500, detail=f"Erro ao excluir conversa: {str(e)}")
 
         
 @app.delete("/api/db")
-def clearDB():
+async def clearDB():
     caminhoDB = "backend/database/chatbot.db"
     if os.path.exists(caminhoDB):
         os.remove(caminhoDB)
-    create_tables()
+    await initialize_db()
     return { "Sucesso": "Banco de dados resetado!"}
 
